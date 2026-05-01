@@ -1,0 +1,22 @@
+version: 1
+
+source:
+  root: .
+  include_hidden: false
+
+output:
+  file: repo_map.txt
+  format: plain_list   # options: plain_list, tree
+
+filters:
+  include:
+    - "**/*"
+  exclude:
+    - ".git/**"
+    - "node_modules/**"
+    - "__pycache__/**"
+
+formatting:
+  path_style: unix     # unix (/a/b) or windows (a\b)
+  leading_slash: true  # /ps4/whatever instead of ps4/whatever
+  sort: true
