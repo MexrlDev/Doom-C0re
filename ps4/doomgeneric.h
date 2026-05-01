@@ -1,6 +1,12 @@
 #ifndef DOOMGENERIC_H
 #define DOOMGENERIC_H
 
+#include "core.h"   // for u8, u32, …
+
+// Doom engine globals – defined by the generic engine
+extern u8  *screen;    // 320×200 indexed framebuffer
+extern u32 *curpal;    // 256‑entry ARGB palette (already converted)
+
 // Platform functions – implemented by PS4 layer
 void I_Init(void);
 void I_Shutdown(void);
