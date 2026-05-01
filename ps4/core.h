@@ -11,7 +11,6 @@ typedef int            s32;
 typedef short          s16;
 typedef signed char    s8;
 
-
 // Gadget offset and kernel handle for syscall resolution
 #define GADGET_OFFSET    0x31AA9
 #define LIBKERNEL_HANDLE 0x2001
