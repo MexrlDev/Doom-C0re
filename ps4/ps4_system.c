@@ -6,36 +6,30 @@ extern void *D;
 extern s32 log_fd;
 extern u8 log_sa[16];
 
+/* Fake FILE type – DoomGeneric expects FILE * for I/O */
 typedef int MY_FILE;
-#define NULL 0
 
 static s32 fd_table[16] = { -1, -1, -1, -1, -1, -1, -1, -1,
                             -1, -1, -1, -1, -1, -1, -1, -1 };
 
-/* ------------------------------------------------------------
- *  Simple string length (no external dependency)
- * ------------------------------------------------------------ */
+/* Simple string length */
 static int my_strlen(const char *s) {
     int n = 0;
     while (*s++) n++;
     return n;
 }
 
-/* ------------------------------------------------------------
- *  Error / quit / print
- * ------------------------------------------------------------ */
+/* Error / quit / print */
 void I_Error(const char *msg) {
     void *sendto = SYM(G, D, LIBKERNEL_HANDLE, "sendto");
     if (sendto && log_fd >= 0) {
         int len = my_strlen(msg);
         NC(G, sendto, (u64)log_fd, (u64)msg, (u64)len, 0, (u64)log_sa, 16);
     }
-    while (1) { /* hang */ }
+    while (1) {}
 }
 
-void I_Quit(void) {
-    // will break the main loop eventually
-}
+void I_Quit(void) { }
 
 void I_PrintStr(const char *str) {
     void *sendto = SYM(G, D, LIBKERNEL_HANDLE, "sendto");
@@ -45,10 +39,7 @@ void I_PrintStr(const char *str) {
     }
 }
 
-/* ------------------------------------------------------------
- *  File I/O – fopen / fclose / fread / fseek
- *  The engine only needs to read the WAD file.
- * ------------------------------------------------------------ */
+/* File I/O */
 MY_FILE *fopen(const char *path, const char *mode) {
     (void)mode;
     void *kopen = SYM(G, D, LIBKERNEL_HANDLE, "sceKernelOpen");
@@ -59,10 +50,9 @@ MY_FILE *fopen(const char *path, const char *mode) {
     for (int i = 0; i < 16; i++) {
         if (fd_table[i] == -1) {
             fd_table[i] = fd;
-            return (MY_FILE *)(u64)(i + 1);   // return a unique handle
+            return (MY_FILE *)(u64)(i + 1);
         }
     }
-    // table full – close and fail
     void *kclose = SYM(G, D, LIBKERNEL_HANDLE, "sceKernelClose");
     if (kclose) NC(G, kclose, (u64)fd, 0, 0, 0, 0, 0);
     return NULL;
@@ -99,11 +89,5 @@ int fseek(MY_FILE *stream, long offset, int whence) {
     return 0;
 }
 
-/* ------------------------------------------------------------
- *  I_Init / I_Shutdown (stubs)
- * ------------------------------------------------------------ */
-void I_Init(void) {
-}
-
-void I_Shutdown(void) {
-}
+void I_Init(void) { }
+void I_Shutdown(void) { }
