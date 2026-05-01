@@ -20,7 +20,7 @@ void *aud_out_fn = NULL;
 void *aud_close_fn = NULL;
 
 // Forward declaration for the FTP waiting phase
-static void draw_centered_text_scaled(u32 *fb, const char *s, int y, u8 color, int scale);
+static void draw_centered_text_scaled(u32 *fb, const char *s, int y, u32 color, int scale);
 
 // ------------------------------------------------------------
 //  UDP log helper
@@ -165,15 +165,14 @@ void _start(u64 eboot_base, u64 dlsym_addr, struct ext_args *ext) {
         ((u32*)v.fbs[1])[i] = ((u32*)v.fbs[0])[i];
     video_flip(&v, 0);
 
-    struct rom_entry dummy[1];
-    int rom_count = ftp_serve(ftp_srv_fd, ftp_data_fd,
-                              G, D, load_mod, mmap,
-                              kopen, kwrite, kclose, kmkdir,
-                              getdents, usleep_fn,
-                              recvfrom, sendto, accept, getsockname,
-                              log_fd, log_sa, ext->dbg[3],
-                              dummy, 1);
-    if (rom_count == 0) {
+    // Wait for a WAD file via FTP
+    int got_wad = ftp_wait_for_wad(ftp_srv_fd, ftp_data_fd,
+                                   G, D, load_mod, mmap,
+                                   kopen, kwrite, kclose, kmkdir,
+                                   getdents, usleep_fn,
+                                   recvfrom, sendto, accept, getsockname,
+                                   log_fd, log_sa, ext->dbg[3]);
+    if (!got_wad) {
         udp_log("No WAD transferred\n");
         video_cleanup(&v);
         ext->status = 0;
@@ -185,7 +184,7 @@ void _start(u64 eboot_base, u64 dlsym_addr, struct ext_args *ext) {
     // -------- Launch Doom --------
     doomgeneric_Init();
 
-    // Main game loop
+    // Main game loop (runs until quit)
     while (1) {
         doomgeneric_Tick();
         if (usleep_fn) NC(G, usleep_fn, 28571, 0,0,0,0,0); // ~35 fps
