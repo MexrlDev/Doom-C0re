@@ -1,22 +1,27 @@
-version: 1
+name: Generate Repo Map
 
-source:
-  root: .
-  include_hidden: false
+on:
+  push:
+  workflow_dispatch:
 
-output:
-  file: repo_map.txt
-  format: plain_list   # options: plain_list, tree
+jobs:
+  map:
+    runs-on: ubuntu-latest
 
-filters:
-  include:
-    - "**/*"
-  exclude:
-    - ".git/**"
-    - "node_modules/**"
-    - "__pycache__/**"
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-formatting:
-  path_style: unix     # unix (/a/b) or windows (a\b)
-  leading_slash: true  # /ps4/whatever instead of ps4/whatever
-  sort: true
+      - name: Generate repo map
+        run: |
+          find . -type f \
+            -not -path "./.git/*" \
+            -not -path "./node_modules/*" \
+            | sed 's|^\./|/|' \
+            | sort > repo_map.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-map
+          path: repo_map.txt
