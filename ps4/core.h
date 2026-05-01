@@ -1,6 +1,7 @@
 #ifndef CORE_H
 #define CORE_H
 
+// Basic integer types for freestanding environment
 typedef unsigned long  u64;
 typedef unsigned int   u32;
 typedef unsigned short u16;
@@ -10,27 +11,34 @@ typedef int            s32;
 typedef short          s16;
 typedef signed char    s8;
 
+// Gadget offset and kernel handle for syscall resolution
 #define GADGET_OFFSET    0x31AA9
 #define LIBKERNEL_HANDLE 0x2001
+
+// Offsets in the EBOOT for existing thread/video handles
 #define EBOOT_GS_THREAD  0x057F89B0
 #define EBOOT_VIDOUT     0x02d695d0
 
+// Display parameters (1920x1080)
 #define SCR_W       1920
 #define SCR_H       1080
 #define FB_SIZE     (SCR_W * SCR_H * 4)
 #define FB_ALIGNED  ((FB_SIZE + 0x1FFFFF) & ~0x1FFFFF)
-#define FB_TOTAL    (FB_ALIGNED * 2)
+#define FB_TOTAL    (FB_ALIGNED * 2)       // double buffering
 
-#define NES_W  256
-#define NES_H  240
-#define SCALE  4
-#define OFF_X  ((SCR_W - NES_W * SCALE) / 2)
-#define OFF_Y  ((SCR_H - NES_H * SCALE) / 2)
+// External arguments passed from Lua
+struct ext_args {
+    s64 status;
+    s64 step;
+    u32 frame_count;
+    u32 _pad;
+    s32 log_fd;          // UDP log socket
+    s32 pad_fd;          // unused
+    u8  log_addr[16];    // remote UDP address
+    u64 dbg[8];          // additional data
+};
 
-#define SAMPLE_RATE     48000
-#define SAMPLES_PER_BUF 256
-#define AUDIO_S16_STEREO 1
-
+// Native syscall invocation via gadget
 __attribute__((naked))
 static u64 native_call(void *gadget, void *fn,
                        u64 a1, u64 a2, u64 a3,
@@ -52,6 +60,7 @@ static u64 native_call(void *gadget, void *fn,
     );
 }
 
+// Resolve a function from a loaded module
 static void *resolve_sym(void *gadget, void *dlsym_fn, s32 handle, const char *name) {
     void *addr = 0;
     native_call(gadget, dlsym_fn, (u64)handle, (u64)name, (u64)&addr, 0, 0, 0);
@@ -60,5 +69,7 @@ static void *resolve_sym(void *gadget, void *dlsym_fn, s32 handle, const char *n
 
 #define NC  native_call
 #define SYM resolve_sym
+
+#define NULL 0
 
 #endif
