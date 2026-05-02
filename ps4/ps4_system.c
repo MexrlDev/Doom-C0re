@@ -241,13 +241,15 @@ size_t fwrite(const void *ptr, size_t size, size_t nmemb, MY_FILE *stream) {
 }
 
 /* ============== DoomGeneric entry points ============== */
-extern void D_Display(void);
+extern void D_DoomMain(void);
 
-
-void doomgeneric_Tick(void) {
-    D_Display();
+void doomgeneric_Init(void) {
+    D_DoomMain();
 }
 
+void doomgeneric_Shutdown(void) {
+    /* nothing */
+}
 
 /* ============== Platform callbacks ============== */
 void I_Error(const char *msg) { log_str(msg); while(1){} }
