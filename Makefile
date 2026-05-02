@@ -54,7 +54,8 @@ SKIP := doomgeneric/doomgeneric_allegro.c \
         doomgeneric/net_server.c \
         doomgeneric/sha1.c \
         doomgeneric/statdump.c \
-        doomgeneric/w_checksum.c
+        doomgeneric/w_checksum.c \
+        doomgeneric/doomgeneric.c
 
 DOOM_SRCS = $(filter-out $(SKIP), $(DOOM_ALL))
 
