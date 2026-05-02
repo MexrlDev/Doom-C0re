@@ -1,16 +1,13 @@
 #include "core.h"
 #include "doomgeneric.h"
-#include <stdarg.h>   /* for va_list */
+#include <stdarg.h>
 
 extern void *G;
 extern void *D;
 extern s32 log_fd;
 extern u8 log_sa[16];
 
-/* size_t (matches system: u64) */
 typedef u64 size_t;
-
-/* Fake FILE */
 typedef int MY_FILE;
 
 /* ---------- global config ---------- */
@@ -68,7 +65,6 @@ size_t strlen(const char *s) { size_t n = 0; while (*s++) n++; return n; }
 int abs(int x) { return (x < 0) ? -x : x; }
 int toupper(int c) { if (c >= 'a' && c <= 'z') return c - 32; return c; }
 
-/* Fixed indentation */
 int strcasecmp(const char *s1, const char *s2) {
     while (*s1 && *s2) {
         int c1 = (*s1 >= 'a' && *s1 <= 'z') ? *s1 - 32 : *s1;
@@ -242,6 +238,22 @@ size_t fwrite(const void *ptr, size_t size, size_t nmemb, MY_FILE *stream) {
     s64 total = (s64)(size * nmemb);
     s32 n = (s32)NC(G, kwrite, (u64)fd_table[idx], (u64)ptr, (u64)total, 0,0,0);
     return (n>0) ? (size_t)(n / size) : 0;
+}
+
+/* ============== DoomGeneric entry points ============== */
+extern void D_DoomMain(void);
+extern void D_Display(void);
+
+void doomgeneric_Init(void) {
+    D_DoomMain();
+}
+
+void doomgeneric_Tick(void) {
+    D_Display();
+}
+
+void doomgeneric_Shutdown(void) {
+    /* nothing */
 }
 
 /* ============== Platform callbacks ============== */
