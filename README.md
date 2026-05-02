@@ -8,7 +8,8 @@
 * [LuaC0re](https://github.com/Gezine/Luac0re/)
 
 ### Credits
-* [MexrlDev](https://github.com/mexrldev) (for Exp-C0re and this project?
+* [MexrlDev](https://github.com/mexrldev) (for Exp-C0re and this project)
 * [Gezine](https://github.com/gezine) (for LuaC0re)
 * [Egycnq](https://github.com/egycnq) (for EmuC0re)
 * [NathanDrake](https://github.com/NathanDrake4530) (for testing on ps5)
+* [ozkl](https://github.com/ozkl) (for doomgeneric)
