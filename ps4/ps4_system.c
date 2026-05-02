@@ -26,6 +26,21 @@ int vanilla_keyboard_mapping = 0;
 static s32 fd_table[16] = { -1, -1, -1, -1, -1, -1, -1, -1,
                             -1, -1, -1, -1, -1, -1, -1, -1 };
 
+/* ============== Custom memory allocator (must come first) ============== */
+
+void *my_malloc(u32 size) {
+    void *mmap = SYM(G, D, LIBKERNEL_HANDLE, "mmap");
+    if (!mmap) return NULL;
+    void *ptr = (void*)NC(G, mmap, 0, (u64)size, 3, 0x1002, (u64)-1, 0);
+    if ((s64)ptr == -1) return NULL;
+    return ptr;
+}
+
+void my_free(void *ptr, u32 size) {
+    void *munmap = SYM(G, D, LIBKERNEL_HANDLE, "munmap");
+    if (munmap && ptr) NC(G, munmap, (u64)ptr, (u64)size, 0, 0, 0, 0);
+}
+
 /* ============== Standard C library replacements ============== */
 void *memset(void *s, int c, size_t n) {
     u8 *p = (u8*)s; while (n--) *p++ = (u8)c; return s;
@@ -79,7 +94,7 @@ char *strrchr(const char *s, int c) {
     const char *last = NULL; while (*s) { if (*s == (char)c) last = s; s++; } return (char*)last;
 }
 char *strdup(const char *s) {
-    size_t len = strlen(s) + 1; char *p = (char*)malloc(len);
+    size_t len = strlen(s) + 1; char *p = (char*)my_malloc((u32)len);
     if (p) memcpy(p, s, len); return p;
 }
 char *strstr(const char *haystack, const char *needle) {
@@ -146,27 +161,19 @@ int *__ctype_toupper_loc(void) {
 
 int *__errno_location(void) { static int e = 0; return &e; }
 
-/* ---------- memory ---------- */
+/* ---------- memory (now after my_malloc) ---------- */
 void *malloc(size_t size) { return my_malloc((u32)size); }
+
 void *calloc(size_t nmemb, size_t size) {
-    u32 total = (u32)(nmemb * size); void *p = my_malloc(total);
-    if (p) memset(p, 0, total); return p;
+    u32 total = (u32)(nmemb * size);
+    void *p = my_malloc(total);
+    if (p) memset(p, 0, total);
+    return p;
 }
+
 void free(void *ptr) { /* unused */ }
 
-void *my_malloc(u32 size) {
-    void *mmap = SYM(G, D, LIBKERNEL_HANDLE, "mmap");
-    if (!mmap) return NULL;
-    void *ptr = (void*)NC(G, mmap, 0, (u64)size, 3, 0x1002, (u64)-1, 0);
-    if ((s64)ptr == -1) return NULL;
-    return ptr;
-}
-void my_free(void *ptr, u32 size) {
-    void *munmap = SYM(G, D, LIBKERNEL_HANDLE, "munmap");
-    if (munmap && ptr) NC(G, munmap, (u64)ptr, (u64)size, 0, 0, 0, 0);
-}
-
-/* ---------- file I/O (with proper guards, no misleading indentation) ---------- */
+/* ---------- file I/O (with proper guards) ---------- */
 MY_FILE *fopen(const char *path, const char *mode) {
     (void)mode;
     void *kopen = SYM(G, D, LIBKERNEL_HANDLE, "sceKernelOpen");
@@ -279,7 +286,7 @@ void I_InitMusic(void) { }
 
 /* stats */
 void StatDump(void) { }
-void StatCopy(MY_FILE *dest) { }   // <-- FIXED: now MY_FILE, not FILE
+void StatCopy(MY_FILE *dest) { }   // uses MY_FILE now
 
 /* misc */
 int I_ConsoleStdout(void) { return 1; }
