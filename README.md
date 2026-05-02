@@ -1,5 +1,5 @@
 # Doom-C0re
-* works on Star Wars Racer Revenge
+* **Coming Soon For Star Wars Racer Revenge**
 
 ### Based on
 * [Doomgeneric](https://github.com/ozkl/doomgeneric)
