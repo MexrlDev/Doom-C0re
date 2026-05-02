@@ -2,7 +2,7 @@
 #include "hijack.h"
 #include "doomgeneric.h"
 
-// ---- Platform‑owned 320x200 buffer and palette ---- 
+// ---------- Global screen & palette ----------
 u8  *screen = NULL;
 u32 *curpal = NULL;
 
@@ -10,20 +10,14 @@ extern void *G;
 extern void *D;
 extern struct video_ctx v;
 
-static int active = 0;
-
-// ------------------------------------------------------------
-//  Memory allocation (declared in ps4_system)
-// ------------------------------------------------------------
 extern void *my_malloc(u32 size);
 extern void  my_free(void *ptr, u32 size);
 
-// ------------------------------------------------------------
+static int active = 0;
+
 void I_InitGraphics(void) {
-    // Allocate the 8‑bit screen and a 256‑colour palette
     screen = (u8*)my_malloc(320 * 200);
     curpal = (u32*)my_malloc(256 * 4);
-    // fill with black / default palette later (engine does it)
 }
 
 void I_ShutdownGraphics(void) {
@@ -37,9 +31,6 @@ void *I_VideoBuffer(void) { return screen; }
 void I_SetPalette(int palette_index) { }
 int  I_GetPaletteIndex(int r, int g, int b) { return 0; }
 
-// ------------------------------------------------------------
-//  Main blit function (already correct)
-// ------------------------------------------------------------
 void I_FinishUpdate(void) {
     u32 *fb = (u32 *)v.fbs[active];
 
@@ -71,13 +62,10 @@ void I_FinishUpdate(void) {
         }
     }
 
-    // black bars
-    for (int y = 0; y < SCR_H; y++) {
-        for (int x = 0; x < SCR_W; x++) {
+    for (int y = 0; y < SCR_H; y++)
+        for (int x = 0; x < SCR_W; x++)
             if (x < off_x || x >= off_x + dst_w || y < off_y || y >= off_y + dst_h)
                 fb[y * SCR_W + x] = 0xFF000000;
-        }
-    }
 
     video_flip(&v, active);
     active ^= 1;
