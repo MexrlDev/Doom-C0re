@@ -1,5 +1,6 @@
 #include "core.h"
 #include "doomgeneric.h"
+#include <stdarg.h>   /* for va_list */
 
 extern void *G;
 extern void *D;
@@ -12,7 +13,7 @@ typedef u64 size_t;
 /* Fake FILE */
 typedef int MY_FILE;
 
-/* ---------- global config (referenced by engine) ---------- */
+/* ---------- global config ---------- */
 int usemouse           = 0;
 int mouse_acceleration = 0;
 int mouse_threshold    = 0;
@@ -26,8 +27,7 @@ int vanilla_keyboard_mapping = 0;
 static s32 fd_table[16] = { -1, -1, -1, -1, -1, -1, -1, -1,
                             -1, -1, -1, -1, -1, -1, -1, -1 };
 
-/* ============== Custom memory allocator (must come first) ============== */
-
+/* ============== Custom memory allocator ============== */
 void *my_malloc(u32 size) {
     void *mmap = SYM(G, D, LIBKERNEL_HANDLE, "mmap");
     if (!mmap) return NULL;
@@ -67,22 +67,30 @@ int strncmp(const char *s1, const char *s2, size_t n) {
 size_t strlen(const char *s) { size_t n = 0; while (*s++) n++; return n; }
 int abs(int x) { return (x < 0) ? -x : x; }
 int toupper(int c) { if (c >= 'a' && c <= 'z') return c - 32; return c; }
+
+/* Fixed indentation */
 int strcasecmp(const char *s1, const char *s2) {
     while (*s1 && *s2) {
         int c1 = (*s1 >= 'a' && *s1 <= 'z') ? *s1 - 32 : *s1;
         int c2 = (*s2 >= 'a' && *s2 <= 'z') ? *s2 - 32 : *s2;
-        if (c1 != c2) return c1 - c2; s1++; s2++;
-    } return *(unsigned char*)s1 - *(unsigned char*)s2;
+        if (c1 != c2) return c1 - c2;
+        s1++; s2++;
+    }
+    return *(unsigned char*)s1 - *(unsigned char*)s2;
 }
+
 int strncasecmp(const char *s1, const char *s2, size_t n) {
     if (!n) return 0;
     while (n-- && *s1 && *s2) {
         int c1 = (*s1 >= 'a' && *s1 <= 'z') ? *s1 - 32 : *s1;
         int c2 = (*s2 >= 'a' && *s2 <= 'z') ? *s2 - 32 : *s2;
-        if (c1 != c2) return c1 - c2; s1++; s2++;
-    } if (n == (size_t)-1) return 0;
+        if (c1 != c2) return c1 - c2;
+        s1++; s2++;
+    }
+    if (n == (size_t)-1) return 0;
     return *(unsigned char*)s1 - *(unsigned char*)s2;
 }
+
 char *strncpy(char *dest, const char *src, size_t n) {
     char *d = dest; while (n && (*d++ = *src++)) n--; while (n--) *d++ = '\0'; return dest;
 }
@@ -94,8 +102,10 @@ char *strrchr(const char *s, int c) {
     const char *last = NULL; while (*s) { if (*s == (char)c) last = s; s++; } return (char*)last;
 }
 char *strdup(const char *s) {
-    size_t len = strlen(s) + 1; char *p = (char*)my_malloc((u32)len);
-    if (p) memcpy(p, s, len); return p;
+    size_t len = strlen(s) + 1;
+    char *p = (char*)my_malloc((u32)len);
+    if (p) memcpy(p, s, len);
+    return p;
 }
 char *strstr(const char *haystack, const char *needle) {
     size_t len = strlen(needle); if (!len) return (char*)haystack;
@@ -119,7 +129,7 @@ double atof(const char *s) {
 int remove(const char *pathname) { return -1; }
 int rename(const char *oldpath, const char *newpath) { return -1; }
 
-/* ---------- printf/fprintf/snprintf (to UDP log) ---------- */
+/* ---------- printf/fprintf/snprintf ---------- */
 static void log_str(const char *s) {
     void *sendto = SYM(G, D, LIBKERNEL_HANDLE, "sendto");
     if (sendto && log_fd >= 0) {
@@ -135,7 +145,6 @@ int snprintf(char *buf, size_t size, const char *fmt, ...) {
 }
 MY_FILE *stderr = (MY_FILE*)0;
 
-/* fortified variants */
 int __printf_chk(int flag, const char *fmt, ...) { log_str(fmt); return 0; }
 int __fprintf_chk(MY_FILE *stream, int flag, const char *fmt, ...) { log_str(fmt); return 0; }
 int __snprintf_chk(char *buf, size_t maxlen, int flag, size_t os, const char *fmt, ...) {
@@ -158,22 +167,19 @@ int *__ctype_toupper_loc(void) {
     if (!table[0]) for (int i=0; i<384; i++) table[i] = (i>='a' && i<='z') ? i-32 : i;
     return table;
 }
-
 int *__errno_location(void) { static int e = 0; return &e; }
 
-/* ---------- memory (now after my_malloc) ---------- */
+/* ---------- memory ---------- */
 void *malloc(size_t size) { return my_malloc((u32)size); }
-
 void *calloc(size_t nmemb, size_t size) {
     u32 total = (u32)(nmemb * size);
     void *p = my_malloc(total);
     if (p) memset(p, 0, total);
     return p;
 }
-
 void free(void *ptr) { /* unused */ }
 
-/* ---------- file I/O (with proper guards) ---------- */
+/* ---------- file I/O ---------- */
 MY_FILE *fopen(const char *path, const char *mode) {
     (void)mode;
     void *kopen = SYM(G, D, LIBKERNEL_HANDLE, "sceKernelOpen");
@@ -190,7 +196,6 @@ MY_FILE *fopen(const char *path, const char *mode) {
     if (kclose) NC(G, kclose, (u64)fd, 0,0,0,0,0);
     return NULL;
 }
-
 int fclose(MY_FILE *stream) {
     if (!stream) return -1;
     int idx = (int)((u64)stream - 1);
@@ -200,7 +205,6 @@ int fclose(MY_FILE *stream) {
     fd_table[idx] = -1;
     return 0;
 }
-
 size_t fread(void *ptr, size_t size, size_t nmemb, MY_FILE *stream) {
     if (!stream) return 0;
     int idx = (int)((u64)stream - 1);
@@ -211,7 +215,6 @@ size_t fread(void *ptr, size_t size, size_t nmemb, MY_FILE *stream) {
     s32 n = (s32)NC(G, kread, (u64)fd_table[idx], (u64)ptr, (u64)total, 0,0,0);
     return (n>0) ? (size_t)(n / size) : 0;
 }
-
 int fseek(MY_FILE *stream, s64 offset, int whence) {
     if (!stream) return -1;
     int idx = (int)((u64)stream - 1);
@@ -221,7 +224,6 @@ int fseek(MY_FILE *stream, s64 offset, int whence) {
     NC(G, klseek, (u64)fd_table[idx], (u64)offset, (u64)whence, 0,0,0);
     return 0;
 }
-
 long ftell(MY_FILE *stream) {
     if (!stream) return -1;
     int idx = (int)((u64)stream - 1);
@@ -231,7 +233,6 @@ long ftell(MY_FILE *stream) {
     s64 pos = (s64)NC(G, klseek, (u64)fd_table[idx], 0, 1, 0,0,0);
     return (long)pos;
 }
-
 size_t fwrite(const void *ptr, size_t size, size_t nmemb, MY_FILE *stream) {
     if (!stream) return 0;
     int idx = (int)((u64)stream - 1);
@@ -250,30 +251,21 @@ void I_Init(void) { }
 void I_Shutdown(void) { }
 void I_PrintStr(const char *str) { log_str(str); }
 
-/* time */
 int I_GetTime(void) { return 0; }
 int I_GetTimeMS(void) { return 0; }
 void I_Sleep(int ms) { }
-
-/* frame */
 void I_StartTic(void) { }
 void I_StartFrame(void) { }
-
-/* video */
 void I_UpdateNoBlit(void) { }
 void I_ReadScreen(void *dest) { }
 void I_Endoom(void) { }
 void I_WaitVBL(int count) { }
-
-/* input */
 void I_BindVideoVariables(void) { }
 void I_BindJoystickVariables(void) { }
 void I_BindSoundVariables(void) { }
 void I_SetGrabMouseCallback(void (*func)(void)) { }
 void I_EnableLoadingDisk(void) { }
 void I_Tactile(int on, int off, int total) { }
-
-/* graphics/sound init */
 void I_GraphicsCheckCommandLine(void) { }
 void I_PrintBanner(void) { }
 void I_DisplayFPSDots(void) { }
@@ -283,21 +275,14 @@ int  I_CheckIsScreensaver(void) { return 0; }
 void I_InitTimer(void) { }
 void I_InitJoystick(void) { }
 void I_InitMusic(void) { }
-
-/* stats */
 void StatDump(void) { }
-void StatCopy(MY_FILE *dest) { }   // uses MY_FILE now
-
-/* misc */
-int I_ConsoleStdout(void) { return 1; }
-int I_GetMemoryValue(unsigned int offset, void *address, unsigned int size) { return 0; }
+void StatCopy(MY_FILE *dest) { }
+int  I_ConsoleStdout(void) { return 1; }
+int  I_GetMemoryValue(unsigned int offset, void *address, unsigned int size) { return 0; }
 void I_AtExit(void (*func)(void), const char *name) { }
 void exit(int status) { while(1){} }
+int  mkdir(const char *pathname, unsigned int mode) { return -1; }
 
-/* file system */
-int mkdir(const char *pathname, unsigned int mode) { return -1; }
-
-/* zone heap */
 void *I_ZoneBase(int *size) {
     static u8 *heap = NULL;
     static int heap_sz = 0;
@@ -310,10 +295,6 @@ void *I_ZoneBase(int *size) {
 }
 void I_BeginRead(void) { }
 void I_EndRead(void) { }
-
-/* sound (extra) */
 void I_UpdateSound(void) { }
 void I_PrecacheSounds(void) { }
-
-/* WAD checksum */
-int W_Checksum(void *data, int len) { return 0; }
+int  W_Checksum(void *data, int len) { return 0; }
